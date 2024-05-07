@@ -11,7 +11,7 @@ from rembg import remove
 
 cc = ColabCode(port = 8000, code = False)
 app = FastAPI()
-model = load_model('./server/fruit_quality.h5')
+model = load_model('./fruit_quality.h5')
 
 class_name = ['freshApples', 'freshBananas', 'freshOranges', 
               'rottenApples', 'rottenBananas', 'rottenOranges']
