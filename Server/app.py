@@ -11,7 +11,7 @@ from rembg import remove
 
 cc = ColabCode(port = 8000, code = False)
 app = FastAPI()
-model = load_model('fruit_quality.h5')
+model = load_model('./server/fruit_quality.h5')
 
 class_name = ['freshApples', 'freshBananas', 'freshOranges', 
               'rottenApples', 'rottenBananas', 'rottenOranges']
@@ -26,9 +26,16 @@ app.add_middleware(
 )
 
 
-def bgRemoval(content):
-    subject = remove(input, alpha_matting = True)
-    return subject
+# def bgRemoval(content):
+#     data = Image.open(BytesIO(content))
+#     bg = Image.open(BytesIO(open('Server/bg1.jpg', 'rb').read()))
+#     bg = bg.resize((data.width, data.height))
+
+#     subject = remove(content, alpha_matting=True)
+#     box = (0, 0, data.width, data.height)
+#     bg.paste(subject, box, subject)
+
+#     return subject
 
 
 @app.get('/')
@@ -40,8 +47,7 @@ def index():
 @app.post('/predict')
 async def prediction(image: UploadFile = File(...)): 
     contents = await image.read()
-    rm_img = bgRemoval(contents)
-    img = Image.open(BytesIO(rm_img))
+    img = Image.open(BytesIO(contents))
     img = img.resize((224,224))
     img = img.convert('RGB')
     img_array = np.array(img)
@@ -56,9 +62,9 @@ async def prediction(image: UploadFile = File(...)):
     'freshApples': {'A': 70, 'B': 40},  # Thresholds for grade A and B for fresh apples
     'freshBananas': {'A': 70, 'B': 40},  # Thresholds for grade A and B for fresh bananas
     'freshOranges': {'A': 70, 'B': 40},  # Thresholds for grade A and B for fresh oranges
-    'rottenApples': {'C': 70, 'B': 40},  # Thresholds for grade B and C for rotten apples
-    'rottenBananas': {'C': 70, 'B': 40},  # Thresholds for grade B and C for rotten bananas
-    'rottenOranges': {'C': 70, 'B': 40}  # Thresholds for grade B and C for rotten oranges
+    'rottenApples': {'C': 80, 'B': 40},  # Thresholds for grade B and C for rotten apples
+    'rottenBananas': {'C': 80, 'B': 40},  # Thresholds for grade B and C for rotten bananas
+    'rottenOranges': {'C': 80, 'B': 40}  # Thresholds for grade B and C for rotten oranges
     }
     grade = ''
     if result_class in thresholds:
@@ -73,7 +79,7 @@ async def prediction(image: UploadFile = File(...)):
     else:
         grade = 'D'
     
-    return {'output': per_res.tolist(), 'result': result_class, 'Grade':grade, 'Image':img}
+    return {'output': per_res.tolist(), 'result': result_class, 'Grade':grade}
 
 
 
