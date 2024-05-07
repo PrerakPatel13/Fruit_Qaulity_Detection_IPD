@@ -7,6 +7,7 @@ import requests
 from io import BytesIO
 from colabcode import ColabCode
 from fastapi.middleware.cors import CORSMiddleware
+from rembg import remove
 
 cc = ColabCode(port = 8000, code = False)
 app = FastAPI()
@@ -24,6 +25,12 @@ app.add_middleware(
     allow_headers=['Content-Type'],
 )
 
+
+def bgRemoval(content):
+    subject = remove(input, alpha_matting = True)
+    return subject
+
+
 @app.get('/')
 def index():
     return {'className': class_name}
@@ -33,7 +40,8 @@ def index():
 @app.post('/predict')
 async def prediction(image: UploadFile = File(...)): 
     contents = await image.read()
-    img = Image.open(BytesIO(contents))
+    rm_img = bgRemoval(contents)
+    img = Image.open(BytesIO(rm_img))
     img = img.resize((224,224))
     img = img.convert('RGB')
     img_array = np.array(img)
@@ -65,7 +73,7 @@ async def prediction(image: UploadFile = File(...)):
     else:
         grade = 'D'
     
-    return {'output': per_res.tolist(), 'result': result_class, 'Grade':grade}
+    return {'output': per_res.tolist(), 'result': result_class, 'Grade':grade, 'Image':img}
 
 
 
