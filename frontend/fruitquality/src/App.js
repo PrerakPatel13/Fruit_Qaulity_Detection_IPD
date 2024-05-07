@@ -80,7 +80,7 @@ function App() {
   // Function to handle prediction with given form data
   const predictImage = async (formData) => {
     try {
-      const response = await fetch('https://9dd0-103-204-132-31.ngrok-free.app/predict', {
+      const response = await fetch('https://9496-2405-201-34-80ac-9c94-d5f-4fd9-53f4.ngrok-free.app/predict', {
         method: 'POST',
         body: formData,
       });
