@@ -1,0 +1,89 @@
+/* General styles */
+* {
+  margin: 0;
+  box-sizing: border-box;
+  font-family: 'Titillium Web', sans-serif;
+  font-weight: 600;
+}
+
+.title {
+  font-family: 'Titillium Web', sans-serif;
+  padding-left: 10px;
+}
+
+#brand {
+  font-weight: 700;
+  font-family: 'Rubik';
+}
+
+#detect {
+  font-weight: 600;
+}
+
+body {
+  background: url(../Images/background.jpg) no-repeat center fixed;
+  background-size: cover;
+}
+
+.yellow {
+  color: #d38c09;
+}
+
+.red {
+  color: rgb(156, 34, 61);
+}
+
+.orange {
+  color: rgb(230, 105, 3);
+}
+
+p {
+  font-size: 1.2em;
+  font-weight: 400;
+}
+
+#main {
+  margin-top: 40px;
+}
+
+/* Media queries for different screen sizes */
+@media (min-width: 992px) {
+  #inputimg {
+    width: 60%;
+  }
+
+  #main {
+    margin-top: 60px;
+  }
+}
+
+/* Styles for webcam and uploaded image */
+#webcam-container {
+  margin-top: 15px;
+}
+
+#webcam-container video {
+  width: 100%;
+  height: auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+#webcam-container button {
+  margin-top: 10px;
+}
+
+#uploadedImage img {
+  margin-top: 15px;
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+/* Style for the prediction result container */
+#label-container {
+  margin-top: 15px;
+  font-size: 1.1em;
+  font-weight: 500;
+  color: #555;
+}
