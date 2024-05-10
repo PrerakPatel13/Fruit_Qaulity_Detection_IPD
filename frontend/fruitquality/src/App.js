@@ -16,36 +16,35 @@ function App() {
             showUploadView: true,
             showUploadFolders: true,
             supportDrives: true,
-            multiselect: false,
+            multiselect: true, // Allow multiple file selection
             callbackFunction: async (data) => {
-              if (data.action === 'picked') {
-                  const selectedFiles = data.docs;
-                  if (selectedFiles.length > 0) {
-                      const selectedFile = selectedFiles[0];
-                      console.log('Selected file from Google Drive:', selectedFile);
-  
-                      // Extract the file URL from the selected file
-                      const fileUrl = selectedFile.url;
-  
-                      // Fetch the file content from the URL
-                      const fileResponse = await fetch(fileUrl);
-                      const fileBlob = await fileResponse.blob();
-  
-                      // Create a form data object and append the file blob
-                      const formData = new FormData();
-                      formData.append('image', fileBlob, selectedFile.name);
-                      console.log(formData)
-                      // Send the form data to the Ngrok endpoint
-                      await predictImage(fileUrl);
-                  }
-              }
-          },
-      });
-  };
+                if (data.action === 'picked') {
+                    const selectedFiles = data.docs;
+                    if (selectedFiles.length > 0) {
+                        const fileUrls = selectedFiles.map(file => file.url);
+
+                        // Process each file one by one
+                        for (const fileUrl of fileUrls) {
+                            // Fetch the file content from the URL
+                            const fileResponse = await fetch(fileUrl);
+                            const fileBlob = await fileResponse.blob();
+
+                            // Create a form data object and append the file blob
+                            const formData = new FormData();
+                            formData.append('files', fileBlob);
+
+                            // Send the form data to the prediction API
+                            await predictImage(formData);
+                        }
+                    }
+                }
+            },
+        });
+    };
 
     // Webcam and image capture
     const [cameraOn, setCameraOn] = useState(false);
-    const [uploadedImageSrc, setUploadedImageSrc] = useState(null);
+    const [uploadedImageSrcs, setUploadedImageSrcs] = useState([]);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const labelContainerRef = useRef(null);
@@ -80,72 +79,147 @@ function App() {
             const context = canvasRef.current.getContext('2d');
             context.drawImage(videoRef.current, 0, 0, canvasRef.current.width, canvasRef.current.height);
             const imageSrc = canvasRef.current.toDataURL('image/png');
-            setUploadedImageSrc(imageSrc);
+            setUploadedImageSrcs([...uploadedImageSrcs, imageSrc]);
 
             const formData = new FormData();
-            formData.append('image', dataURIToBlob(imageSrc));
-            console.log(formData)
+            formData.append('files', dataURIToBlob(imageSrc));
             await predictImage(formData);
         }
     };
 
     // File input and prediction
-    const [selectedFile, setSelectedFile] = useState(null);
+    const [selectedFiles, setSelectedFiles] = useState([]);
 
     const handleFileSelection = (event) => {
         const fileUploadControl = event.target;
-        if (fileUploadControl.files.length > 0) {
-            const file = fileUploadControl.files[0];
-            setSelectedFile(file);
-            setUploadedImageSrc(URL.createObjectURL(file));
+        const files = Array.from(fileUploadControl.files); // Convert FileList to Array
+    
+        if (files.length > 0) {
+            // Reset the state variables to clear previous images and files
+            setSelectedFiles(files);
+            
+            // Reset uploadedImageSrcs state and create an array of new image URLs to display
+            const newImageUrls = files.map(file => URL.createObjectURL(file));
+            setUploadedImageSrcs(newImageUrls);
         }
     };
+    
 
     const handleLoadImage = async () => {
-        if (!selectedFile) {
-            toast.error('Please select an image file first.');
+        if (selectedFiles.length === 0) {
+            toast.error('Please select image files first.');
             return;
         }
-
+    
+        // Create a single FormData object and append all selected files
         const formData = new FormData();
-        formData.append('image', selectedFile);
-        console.log(formData)
-        await predictImage(formData);
+        selectedFiles.forEach((file) => {
+            formData.append('files', file); // Use 'images' as the field name (adjust as per your API)
+        });
+    
+        try {
+            // Call the API with the formData containing all files
+            await predictImage(formData);
+        } catch (error) {
+            console.error('Failed to predict images:', error);
+            toast.error('Failed to predict images. Please try again.');
+        }
     };
-
+    const calculateOverallResultAndGrade = (results, grades, outputs) => {
+        // Calculate overall final result and grade based on the individual results and grades
+    
+        // Calculate the most common result
+        const resultFrequency = {};
+        results.forEach(result => {
+            resultFrequency[result] = (resultFrequency[result] || 0) + 1;
+        });
+    
+        // Find the result with the highest frequency (most common result)
+        let overallFinalResult = null;
+        let maxFrequency = 0;
+        for (const [result, frequency] of Object.entries(resultFrequency)) {
+            if (frequency > maxFrequency) {
+                overallFinalResult = result;
+                maxFrequency = frequency;
+            }
+        }
+    
+        // Calculate the overall final grade
+        // Here, we can choose to take the lowest grade as the overall grade.
+        // You may adjust this based on your application's requirements.
+        const overallFinalGrade = grades.reduce((acc, grade) => {
+            return acc > grade ? grade : acc;
+        }, grades[0]);
+    
+        return { overallFinalResult, overallFinalGrade };
+    };
+    
     const predictImage = async (formData) => {
         try {
+            // Log the form data before sending
+            console.log('FormData before sending:', [...formData.entries()]);
+    
+            // Make the API call with the formData containing all files
             const response = await fetch(process.env.REACT_APP_PREDICTION_API_URL, {
                 method: 'POST',
                 body: formData,
             });
-
+    
             if (response.ok) {
                 const data = await response.json();
                 console.log('Prediction result:', data);
-
-                const { className, percentage } = getClassWithHighestProbability(data.output, classNames);
-                const grade = data.Grade || 'N/A';
-
-                if (labelContainerRef.current) {
-                    labelContainerRef.current.innerHTML = `
-                        <p>Prediction: ${className}</p>
-                        <p>Percentage: ${percentage}%</p>
-                        <p>Grade: ${grade}</p>
+    
+                // Handle the prediction results for each image
+                const finalResults = data.result;
+                const finalGrades = data.Grade;
+                const outputs = data.output;
+    
+                // Display individual results, grades, and outputs
+                let resultHTML = '<p>Prediction Results:</p>';
+                finalResults.forEach((result, index) => {
+                    const grade = finalGrades[index];
+                    const output = outputs[index];
+    
+                    resultHTML += `
+                        <p>Image ${index + 1}:</p>
+                        <p>Final Result: ${result}</p>
+                        <p>Final Grade: ${grade}</p>
+                        <p>Output: ${output}</p>
+                        <hr>
                     `;
+                });
+    
+                // Calculate overall final result and grade
+                const { overallFinalResult, overallFinalGrade } = calculateOverallResultAndGrade(finalResults, finalGrades, outputs);
+    
+                // Add overall final result and grade to the HTML
+                resultHTML += `
+                    <p>Overall Final Result: ${overallFinalResult}</p>
+                    <p>Overall Final Grade: ${overallFinalGrade}</p>
+                `;
+    
+                // Display the results
+                if (labelContainerRef.current) {
+                    labelContainerRef.current.innerHTML = resultHTML;
                 }
-
-                toast.success('Image successfully uploaded and prediction received.');
+    
+                toast.success('Images successfully uploaded and prediction received.');
             } else {
+                // Handle server errors and provide specific feedback
                 const errorText = await response.text();
                 console.error(`Server error ${response.status}: ${response.statusText}. Response: ${errorText}`);
                 toast.error(`Failed to load resource. Server error ${response.status}: ${response.statusText}`);
             }
         } catch (error) {
-            console.error('Error sending image:', error);
-            toast.error('Failed to send image. Please try again.');
+            console.error('Error sending images:', error);
+            toast.error('Failed to send images. Please try again.');
         }
     };
+    
+    
+    
+
+    
 
     // Utility functions
     function getClassWithHighestProbability(output, classNames) {
@@ -186,8 +260,7 @@ function App() {
                                     Determine whether your fruit is fresh or rotten
                                 </h3>
                                 <p className="px-3">
-                                    You can choose only <span className="yellow">Banana</span>, <span className="orange">Orange</span>, or{' '}
-                                    <span className="red">Apple</span> for testing.
+                                    You can choose only <span className="yellow">Banana</span>, <span className="orange">Orange</span>, or <span className="red">Apple</span> for testing.
                                 </p>
                                 <p className="px-3">
                                     For doing so, you can either use your webcam and show the fruit or upload an image from your device.
@@ -216,6 +289,7 @@ function App() {
                                             accept="image/*"
                                             id="fruitimg"
                                             onChange={handleFileSelection}
+                                            multiple
                                         />
                                         <button className="btn btn-outline-primary" id="loadBtn" onClick={handleLoadImage}>
                                             Load
@@ -245,9 +319,11 @@ function App() {
                                     </div>
                                 </div>
 
-                                {/* Display uploaded image */}
-                                <div id="uploadedImage" className="mt-3">
-                                    {uploadedImageSrc && <img src={uploadedImageSrc} alt="Uploaded" width="100%" />}
+                                {/* Display uploaded images */}
+                                <div id="uploadedImages" className="mt-3">
+                                    {uploadedImageSrcs.map((src, index) => (
+                                        <img key={index} src={src} alt={`Uploaded ${index + 1}`} width="100%" />
+                                    ))}
                                 </div>
 
                                 {/* Prediction result */}
