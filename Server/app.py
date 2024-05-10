@@ -89,7 +89,7 @@ async def prediction(files: List[UploadFile] = File(...)):
         grading.append(g)
 
     final_res = max(set(predictions), key = predictions.count)
-    final_grade = max(set(grading), key = predictions.count)
+    final_grade = max(set(grading), key = grading.count)
     match_out = [arr_preds[i] for i in range(len(arr_preds)) if final_res == predictions[i]]
     final_per = sum(match_out) / len(match_out) if match_out else 0
 
