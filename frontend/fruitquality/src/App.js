@@ -127,13 +127,13 @@ function App() {
     };
     const calculateOverallResultAndGrade = (results, grades, outputs) => {
         // Calculate overall final result and grade based on the individual results and grades
-    
+        
         // Calculate the most common result
         const resultFrequency = {};
         results.forEach(result => {
             resultFrequency[result] = (resultFrequency[result] || 0) + 1;
         });
-    
+        
         // Find the result with the highest frequency (most common result)
         let overallFinalResult = null;
         let maxFrequency = 0;
@@ -143,22 +143,27 @@ function App() {
                 maxFrequency = frequency;
             }
         }
-    
+        
         // Calculate the overall final grade
-        // Here, we can choose to take the lowest grade as the overall grade.
+        // Here, we take the lowest grade as the overall grade.
         // You may adjust this based on your application's requirements.
         const overallFinalGrade = grades.reduce((acc, grade) => {
             return acc > grade ? grade : acc;
         }, grades[0]);
-    
-        return { overallFinalResult, overallFinalGrade };
+        
+        // Calculate the overall final percentage
+        // Calculate the average output percentage
+        const totalOutput = outputs.reduce((sum, output) => sum + output, 0);
+        const overallFinalPercentage = (totalOutput / outputs.length).toFixed(2); // Rounded to 2 decimal places
+        
+        return { overallFinalResult, overallFinalGrade, overallFinalPercentage };
     };
     
     const predictImage = async (formData) => {
         try {
             // Log the form data before sending
             console.log('FormData before sending:', [...formData.entries()]);
-    
+        
             // Make the API call with the formData containing all files
             const response = await fetch(process.env.REACT_APP_PREDICTION_API_URL, {
                 method: 'POST',
@@ -168,41 +173,43 @@ function App() {
             if (response.ok) {
                 const data = await response.json();
                 console.log('Prediction result:', data);
-    
+        
                 // Handle the prediction results for each image
                 const finalResults = data.result;
                 const finalGrades = data.Grade;
                 const outputs = data.output;
-    
-                // Display individual results, grades, and outputs
+        
+                // Display individual results, grades, and percentages
                 let resultHTML = '<p>Prediction Results:</p>';
                 finalResults.forEach((result, index) => {
                     const grade = finalGrades[index];
                     const output = outputs[index];
-    
+                    const percentage = (output).toFixed(2); // Convert output to percentage and round to 2 decimal places
+        
                     resultHTML += `
                         <p>Image ${index + 1}:</p>
                         <p>Final Result: ${result}</p>
                         <p>Final Grade: ${grade}</p>
-                        <p>Output: ${output}</p>
+                        <p>Percentage: ${percentage}%</p>
                         <hr>
                     `;
                 });
-    
-                // Calculate overall final result and grade
-                const { overallFinalResult, overallFinalGrade } = calculateOverallResultAndGrade(finalResults, finalGrades, outputs);
-    
-                // Add overall final result and grade to the HTML
+        
+                // Calculate overall final result, grade, and percentage
+                const { overallFinalResult, overallFinalGrade, overallFinalPercentage } = calculateOverallResultAndGrade(finalResults, finalGrades, outputs);
+        
+                // Add overall final result, grade, and percentage to the HTML
                 resultHTML += `
                     <p>Overall Final Result: ${overallFinalResult}</p>
                     <p>Overall Final Grade: ${overallFinalGrade}</p>
+                    <p>Overall Final Percentage: ${overallFinalPercentage}%</p>
                 `;
-    
+        
                 // Display the results
                 if (labelContainerRef.current) {
                     labelContainerRef.current.innerHTML = resultHTML;
                 }
-    
+        
                 toast.success('Images successfully uploaded and prediction received.');
             } else {
                 // Handle server errors and provide specific feedback
@@ -215,10 +222,6 @@ function App() {
             toast.error('Failed to send images. Please try again.');
         }
     };
-    
-    
-    
-
     
 
     // Utility functions
