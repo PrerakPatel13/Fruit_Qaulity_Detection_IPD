@@ -20,10 +20,10 @@ class_name = ['freshApples', 'freshBananas', 'freshOranges',
 # CORS (Cross-Origin Resource Sharing) middleware to allow requests from React app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=['POST'],
-    allow_headers=['Content-Type'],
+    allow_methods=["*"],  # Allow all methods (POST, GET, etc.)
+    allow_headers=["*"], 
 )
 
 
